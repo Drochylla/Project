@@ -1,0 +1,141 @@
+import json
+
+class Student:
+    def __init__(self, student_id, name, email):
+        self.student_id = student_id
+        self.name = name
+        self.email = email
+
+class Faculty:
+    def __init__(self, faculty_name, field):
+        self.faculty_name = faculty_name
+        self.field = field
+        self.students = []
+
+class StudentManagementSystem:
+    def __init__(self):
+        self.faculties = []
+        self.log = []
+
+    def create_faculty(self, faculty_name, field):
+        faculty = Faculty(faculty_name, field)
+        self.faculties.append(faculty)
+        self.log_operation(f"Created faculty: {faculty_name} ({field})")
+
+    def assign_student_to_faculty(self, student_id, faculty_name):
+        student = self.find_student_by_id(student_id)
+        faculty = self.find_faculty_by_name(faculty_name)
+
+        if student and faculty:
+            faculty.students.append(student)
+            self.log_operation(f"Assigned {student.name} to {faculty_name} faculty.")
+        else:
+            print("Error: Student or faculty not found.")
+
+    def graduate_student(self, student_id, faculty_name):
+        faculty = self.find_faculty_by_name(faculty_name)
+
+        if faculty:
+            for student in faculty.students:
+                if student.student_id == student_id:
+                    faculty.students.remove(student)
+                    self.log_operation(f"Graduated {student.name} from {faculty_name} faculty.")
+                    return
+            print(f"Error: Student with ID {student_id} not found in {faculty_name} faculty.")
+        else:
+            print(f"Error: Faculty {faculty_name} not found.")
+
+    def display_enrolled_students(self, faculty_name):
+        faculty = self.find_faculty_by_name(faculty_name)
+
+        if faculty:
+            print(f"\nEnrolled students in {faculty_name} faculty:")
+            for student in faculty.students:
+                print(f"{student.name} ({student.email})")
+        else:
+            print(f"Error: Faculty {faculty_name} not found.")
+
+    def display_graduates(self, faculty_name):
+        faculty = self.find_faculty_by_name(faculty_name)
+
+        if faculty:
+            print(f"\nGraduates from {faculty_name} faculty:")
+            for student in self.find_graduates(faculty_name):
+                print(f"{student.name} ({student.email})")
+        else:
+            print(f"Error: Faculty {faculty_name} not found.")
+
+    def find_faculty_by_name(self, faculty_name):
+        for faculty in self.faculties:
+            if faculty.faculty_name == faculty_name:
+                return faculty
+        return None
+
+    def find_student_by_id(self, student_id):
+        for faculty in self.faculties:
+            for student in faculty.students:
+                if student.student_id == student_id:
+                    return student
+        return None
+
+    def find_graduates(self, faculty_name):
+        graduates = []
+        for faculty in self.faculties:
+            if faculty.faculty_name == faculty_name:
+                for student in faculty.students:
+                    if student not in self.find_faculty_by_name(faculty_name).students:
+                        graduates.append(student)
+        return graduates
+
+    def log_operation(self, operation):
+        self.log.append(operation)
+
+    def save_state(self, filename):
+        data = {
+            'faculties': [{
+                'faculty_name': faculty.faculty_name,
+                'field': faculty.field,
+                'students': [{'student_id': student.student_id, 'name': student.name, 'email': student.email}
+                             for student in faculty.students]
+            } for faculty in self.faculties],
+            'log': self.log
+        }
+
+        with open(filename, 'w') as file:
+            json.dump(data, file, indent=2)
+
+    def load_state(self, filename):
+        with open(filename, 'r') as file:
+            data = json.load(file)
+
+        self.faculties = []
+        for faculty_data in data['faculties']:
+            faculty = Faculty(faculty_data['faculty_name'], faculty_data['field'])
+            faculty.students = [Student(student_data['student_id'], student_data['name'], student_data['email'])
+                                for student_data in faculty_data['students']]
+            self.faculties.append(faculty)
+
+        self.log = data['log']
+
+
+sms = StudentManagementSystem()
+
+sms.create_faculty("Computer Science", "SOFTWARE_ENGINEERING")
+sms.create_faculty("Electrical Engineering", "ELECTRICAL_ENGINEERING")
+
+sms.assign_student_to_faculty(1, "Computer Science")
+sms.assign_student_to_faculty(2, "Computer Science")
+sms.assign_student_to_faculty(3, "Electrical Engineering")
+
+sms.display_enrolled_students("Computer Science")
+
+sms.graduate_student(2, "Computer Science")
+
+sms.display_graduates("Computer Science")
+
+sms.save_state("sms_state.json")
+
+sms2 = StudentManagementSystem()
+sms2.load_state("sms_state.json")
+
+sms2.display_enrolled_students("Computer Science")
